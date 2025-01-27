@@ -23,6 +23,8 @@ import type { ProviderInfo } from '~/types/model';
 import { useSearchParams } from '@remix-run/react';
 import { createSampler } from '~/utils/sampler';
 import { getTemplates, selectStarterTemplate } from '~/utils/selectStarterTemplate';
+import { updateToken } from '~/utils/auth';
+import { authStore } from '~/lib/stores/authStore';
 
 const toastAnimation = cssTransition({
   enter: 'animated fadeInRight',
@@ -136,6 +138,7 @@ export const ChatImpl = memo(
     const [animationScope, animate] = useAnimate();
 
     const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
+    const { user } = useStore(authStore);
 
     const { messages, isLoading, input, handleInputChange, setInput, stop, append, setMessages, reload, error } =
       useChat({
@@ -154,9 +157,17 @@ export const ChatImpl = memo(
           );
         },
         onFinish: (message, response) => {
+          console.log('complete response', response);
+
           const usage = response.usage;
 
           if (usage) {
+            const inputData: any = {
+              user_id: user.id,
+              model: 'gpt-4',
+              total_used_tokens: usage.totalTokens,
+            };
+            updateToken(inputData);
             console.log('Token usage:', usage);
 
             // You can now use the usage data as needed
@@ -472,11 +483,13 @@ export const ChatImpl = memo(
     }, []);
 
     const handleModelChange = (newModel: string) => {
+      console.log(newModel);
       setModel(newModel);
       Cookies.set('selectedModel', newModel, { expires: 30 });
     };
 
     const handleProviderChange = (newProvider: ProviderInfo) => {
+      console.log(newProvider);
       setProvider(newProvider);
       Cookies.set('selectedProvider', newProvider.name, { expires: 30 });
     };
