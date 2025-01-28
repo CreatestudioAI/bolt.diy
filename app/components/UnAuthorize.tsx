@@ -8,7 +8,7 @@ interface UnAuthorizeProps {
   accessUrl: string;
 }
 
-export const UnAuthorize = ({ loginUrl, accessUrl }: UnAuthorizeProps) => {
+export const UnAuthorize = ({ loginUrl }: UnAuthorizeProps) => {
   const { isLoading } = useStore(authStore);
 
   if (isLoading) {
