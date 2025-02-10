@@ -16,6 +16,11 @@ export async function fetchUserData(token: any) {
         },
       });
 
+      if(response.status === 401){
+        authStore.setKey('hasAccess', false);
+        authStore.setKey('isLoading', false);
+      }
+
       if (!response.ok) {
         throw new Error('Failed to fetch user data');
       }
@@ -44,6 +49,7 @@ export const getTokendetails = async () => {
         Accept: 'application/json',
       },
     });
+    
     const output: any = await response.json();
 
     if (output.status) {
@@ -108,6 +114,10 @@ export const updateToken = async (inputData: any) => {
       },
       body: JSON.stringify(inputData),
     });
+    if(response.status === 401){
+      authStore.setKey('hasAccess', false);
+      authStore.setKey('isLoading', false);
+    }
     const output: any = await response.json();
     Cookies.set('userCsai', JSON.stringify(output.userDetails), { path: '/', secure: false });
     authStore.setKey('user', output.userDetails);
