@@ -1,11 +1,10 @@
-import { jwtDecode } from 'jwt-decode';
+
 import Cookies from 'js-cookie';
 import { authStore } from '~/lib/stores/authStore';
 
 const apiUrl: any = import.meta.env.VITE_API_URL + '/api';
 
 export async function fetchUserData(token: any) {
-  if (validateToken(token)) {
     try {
       authStore.setKey('isLoading', true);
 
@@ -37,7 +36,6 @@ export async function fetchUserData(token: any) {
       authStore.setKey('error', err.message);
       authStore.setKey('isLoading', false);
     }
-  }
 }
 
 export const getTokendetails = async () => {
@@ -86,22 +84,7 @@ export const isUserLoggedIn = async () => {
   }
 };
 
-export const validateToken = (token: any) => {
-  if (!token) {
-    return false;
-  }
 
-  try {
-    const decoded: any = jwtDecode(token);
-    const now = Date.now() / 1000;
-
-    // Current time in seconds
-    return decoded.exp > now; // Returns true if the token is valid (not expired)
-  } catch (error) {
-    console.log('error', error);
-    return false; // Invalid token format
-  }
-};
 
 export const updateToken = async (inputData: any) => {
   try {

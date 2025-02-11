@@ -2,14 +2,20 @@ import { ClientOnly } from 'remix-utils/client-only';
 import { LoadingOverlay } from './ui/LoadingOverlay';
 import { useStore } from '@nanostores/react';
 import { authStore } from '~/lib/stores/authStore';
+import { useEffect } from 'react';
 
 interface UnAuthorizeProps {
   loginUrl: string;
   accessUrl: string;
 }
 
-export const UnAuthorize = ({ loginUrl }: UnAuthorizeProps) => {
+export const UnAuthorize = ({}: UnAuthorizeProps) => {
   const { isLoading } = useStore(authStore);
+  useEffect(() => {
+    setTimeout(() => {
+      window.location.href = 'https://createstudio.app/login';
+    }, 1000);
+  }, []);
 
   if (isLoading) {
     return (
@@ -47,7 +53,7 @@ export const UnAuthorize = ({ loginUrl }: UnAuthorizeProps) => {
 
                   <div className="flex flex-col space-y-4">
                     <a
-                      href={loginUrl}
+                      href="https://createstudio.app/login"
                       className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded transition duration-300"
                     >
                       Click here to login
