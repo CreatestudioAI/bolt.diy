@@ -1,41 +1,40 @@
-
 import Cookies from 'js-cookie';
 import { authStore } from '~/lib/stores/authStore';
 
 const apiUrl: any = import.meta.env.VITE_API_URL + '/api';
 
 export async function fetchUserData(token: any) {
-    try {
-      authStore.setKey('isLoading', true);
+  try {
+    authStore.setKey('isLoading', true);
 
-      const response = await fetch(`${apiUrl}/user`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: 'application/json',
-        },
-      });
+    const response = await fetch(`${apiUrl}/user`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/json',
+      },
+    });
 
-      if (response.status === 401) {
-        authStore.setKey('hasAccess', false);
-        authStore.setKey('isLoading', false);
-      }
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch user data');
-      }
-
-      const userData: any = await response.json();
-
-      // Update the store with user data and the token
-      authStore.setKey('user', userData);
-      Cookies.set('userCsai', JSON.stringify(userData), { path: '/', secure: false });
-      authStore.setKey('isLoading', false);
-      authStore.setKey('hasAccess', true);
-      authStore.setKey('accessToken', token);
-    } catch (err: any) {
-      authStore.setKey('error', err.message);
+    if (response.status === 401) {
+      authStore.setKey('hasAccess', false);
       authStore.setKey('isLoading', false);
     }
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch user data');
+    }
+
+    const userData: any = await response.json();
+
+    // Update the store with user data and the token
+    authStore.setKey('user', userData);
+    Cookies.set('userCsai', JSON.stringify(userData), { path: '/', secure: false });
+    authStore.setKey('isLoading', false);
+    authStore.setKey('hasAccess', true);
+    authStore.setKey('accessToken', token);
+  } catch (err: any) {
+    authStore.setKey('error', err.message);
+    authStore.setKey('isLoading', false);
+  }
 }
 
 export const getTokendetails = async () => {
@@ -83,8 +82,6 @@ export const isUserLoggedIn = async () => {
     console.log('error', error);
   }
 };
-
-
 
 export const updateToken = async (inputData: any) => {
   try {
