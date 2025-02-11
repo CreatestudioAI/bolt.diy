@@ -2,7 +2,6 @@ import { ClientOnly } from 'remix-utils/client-only';
 import { LoadingOverlay } from './ui/LoadingOverlay';
 import { useStore } from '@nanostores/react';
 import { authStore } from '~/lib/stores/authStore';
-import { useEffect } from 'react';
 
 interface UnAuthorizeProps {
   loginUrl: string;
@@ -11,11 +10,6 @@ interface UnAuthorizeProps {
 
 export const UnAuthorize = ({}: UnAuthorizeProps) => {
   const { isLoading } = useStore(authStore);
-  useEffect(() => {
-    setTimeout(() => {
-      window.location.href = 'https://createstudio.app/login';
-    }, 1000);
-  }, []);
 
   if (isLoading) {
     return (
