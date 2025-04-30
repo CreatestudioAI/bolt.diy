@@ -27,6 +27,8 @@ import { logStore } from '~/lib/stores/logs';
 import { streamingState } from '~/lib/stores/streaming';
 import { filesToArtifacts } from '~/utils/fileUtils';
 import { supabaseConnection } from '~/lib/stores/supabase';
+import { updateToken } from '~/utils/auth';
+import { authStore } from '~/lib/stores/authStore';
 
 const toastAnimation = cssTransition({
   enter: 'animated fadeInRight',
@@ -147,6 +149,7 @@ export const ChatImpl = memo(
     const [animationScope, animate] = useAnimate();
 
     const [apiKeys, setApiKeys] = useState<Record<string, string>>({});
+    const { user } = useStore(authStore);
 
     const {
       messages,
@@ -194,6 +197,14 @@ export const ChatImpl = memo(
         setData(undefined);
 
         if (usage) {
+          console.log('Token usage:', usage);
+
+          const inputData: any = {
+            user_id: user.id,
+            model: 'gpt-4',
+            total_used_tokens: usage.totalTokens,
+          };
+          updateToken(inputData);
           console.log('Token usage:', usage);
           logStore.logProvider('Chat response completed', {
             component: 'Chat',
@@ -494,11 +505,13 @@ export const ChatImpl = memo(
     }, []);
 
     const handleModelChange = (newModel: string) => {
+      console.log(newModel);
       setModel(newModel);
       Cookies.set('selectedModel', newModel, { expires: 30 });
     };
 
     const handleProviderChange = (newProvider: ProviderInfo) => {
+      console.log(newProvider);
       setProvider(newProvider);
       Cookies.set('selectedProvider', newProvider.name, { expires: 30 });
     };

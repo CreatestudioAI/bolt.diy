@@ -53,10 +53,19 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
   }>();
 
   const cookieHeader = request.headers.get('Cookie');
+  const userData = JSON.parse(parseCookies(cookieHeader || '').userCsai || '{}');
+  console.log('userdata', userData);
+
   const apiKeys = JSON.parse(parseCookies(cookieHeader || '').apiKeys || '{}');
   const providerSettings: Record<string, IProviderSetting> = JSON.parse(
     parseCookies(cookieHeader || '').providers || '{}',
   );
+
+  if (userData.remaining_words === '0.00') {
+    throw new Response("You don't have sufficient credit to create this request!", {
+      status: 400,
+    });
+  }
 
   const stream = new SwitchableStream();
 
