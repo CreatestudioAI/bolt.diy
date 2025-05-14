@@ -13,12 +13,14 @@ export default class OpenAIProvider extends BaseProvider {
   };
 
   staticModels: ModelInfo[] = [
-    { name: 'gpt-4o', label: 'GPT-4o', provider: 'OpenAI', maxTokenAllowed: 8000 },
+    //{ name: 'gpt-4o', label: 'GPT-4o', provider: 'OpenAI', maxTokenAllowed: 8000 },
     { name: 'gpt-4o-mini', label: 'GPT-4o Mini', provider: 'OpenAI', maxTokenAllowed: 8000 },
     { name: 'gpt-4-turbo', label: 'GPT-4 Turbo', provider: 'OpenAI', maxTokenAllowed: 8000 },
     { name: 'gpt-4', label: 'GPT-4', provider: 'OpenAI', maxTokenAllowed: 8000 },
     { name: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo', provider: 'OpenAI', maxTokenAllowed: 8000 },
   ];
+
+  specificModels: any[] = ['gpt-4o', 'o4-mini', 'o4-high', 'o3-mini-2025-01-31', 'o3-mini', 'o1'];
 
   async getDynamicModels(
     apiKeys?: Record<string, string>,
@@ -46,10 +48,21 @@ export default class OpenAIProvider extends BaseProvider {
     const res = (await response.json()) as any;
     const staticModelIds = this.staticModels.map((m) => m.name);
 
+    /*
+     * console.log("staticModelIds", staticModelIds);
+     *  const data = res.data.filter(
+     *    (model: any) =>
+     *      model.object === 'model' &&
+     *      (model.id.startsWith('gpt-') || model.id.startsWith('o') || model.id.startsWith('chatgpt-')) &&
+     *      !staticModelIds.includes(model.id),
+     *  );
+     */
+
     const data = res.data.filter(
       (model: any) =>
         model.object === 'model' &&
-        (model.id.startsWith('gpt-') || model.id.startsWith('o') || model.id.startsWith('chatgpt-')) &&
+        (model.id.startsWith('gpt-4') || model.id.startsWith('o')) &&
+        this.specificModels.includes(model.id) &&
         !staticModelIds.includes(model.id),
     );
 

@@ -9,7 +9,7 @@ import { Header } from '~/components/header/Header';
 import BackgroundRays from '~/components/ui/BackgroundRays';
 import { UnAuthorize } from '~/components/UnAuthorize';
 import { authStore } from '~/lib/stores/authStore';
-import { getTokendetails, updateToken } from '~/utils/auth';
+import { getTokendetails } from '~/utils/auth';
 
 export const meta: MetaFunction = () => {
   return [
@@ -36,12 +36,14 @@ export default function Index() {
    * const [loading, setLoading] =  useState(true);
    */
   useEffect(() => {
-    const inputData: any = {
-      user_id: '6',
-      model: 'gpt-4',
-      total_used_tokens: 4111,
-    };
-    updateToken(inputData);
+    /*
+     * const inputData: any = {
+     *   user_id: '6',
+     *   model: 'gpt-4',
+     *   total_used_tokens: 4111,
+     * };
+     * updateToken(inputData);
+     */
     getTokendetails();
 
     /*
