@@ -1,5 +1,6 @@
 import Cookies from 'js-cookie';
 import { authStore } from '~/lib/stores/authStore';
+import { profileStore } from '~/lib/stores/profile';
 
 const apiUrl: any = import.meta.env.VITE_API_URL + '/api';
 
@@ -27,6 +28,11 @@ export async function fetchUserData(token: any) {
 
     // Update the store with user data and the token
     authStore.setKey('user', userData);
+    profileStore.set({
+      username: userData.name,
+      bio: '',
+      avatar: ''
+    });
     Cookies.set('userCsai', JSON.stringify(userData), { path: '/', secure: false });
     authStore.setKey('isLoading', false);
     authStore.setKey('hasAccess', true);
