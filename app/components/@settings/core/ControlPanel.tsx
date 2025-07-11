@@ -38,6 +38,7 @@ import CloudProvidersTab from '~/components/@settings/tabs/providers/cloud/Cloud
 import ServiceStatusTab from '~/components/@settings/tabs/providers/status/ServiceStatusTab';
 import LocalProvidersTab from '~/components/@settings/tabs/providers/local/LocalProvidersTab';
 import TaskManagerTab from '~/components/@settings/tabs/task-manager/TaskManagerTab';
+import { authStore } from '~/lib/stores/authStore';
 
 interface ControlPanelProps {
   open: boolean;
@@ -162,6 +163,7 @@ export const ControlPanel = ({ open, onClose }: ControlPanelProps) => {
   const tabConfiguration = useStore(tabConfigurationStore);
   const developerMode = useStore(developerModeStore);
   const profile = useStore(profileStore) as Profile;
+  const userData = useStore(authStore).user;
 
   // Status hooks
   const { hasUpdate, currentVersion, acknowledgeUpdate } = useUpdateCheck();
@@ -467,12 +469,14 @@ export const ControlPanel = ({ open, onClose }: ControlPanelProps) => {
                   <div className="flex items-center gap-6">
                     {/* Mode Toggle */}
                     <div className="flex items-center gap-2 min-w-[140px] border-r border-gray-200 dark:border-gray-800 pr-6">
-                      <AnimatedSwitch
-                        id="developer-mode"
-                        checked={developerMode}
-                        onCheckedChange={handleDeveloperModeChange}
-                        label={developerMode ? 'Developer Mode' : 'User Mode'}
-                      />
+                      {userData?.type == 'admin' && (
+                        <AnimatedSwitch
+                          id="developer-mode"
+                          checked={developerMode}
+                          onCheckedChange={handleDeveloperModeChange}
+                          label={developerMode ? 'Developer Mode' : 'User Mode'}
+                        />
+                      )}
                     </div>
 
                     {/* Avatar and Dropdown */}

@@ -31,7 +31,7 @@ export async function fetchUserData(token: any) {
     profileStore.set({
       username: userData.name,
       bio: '',
-      avatar: ''
+      avatar: '',
     });
     Cookies.set('userCsai', JSON.stringify(userData), { path: '/', secure: false });
     authStore.setKey('isLoading', false);

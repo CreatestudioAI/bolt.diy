@@ -9,7 +9,8 @@ import { themeStore } from '~/lib/stores/theme';
 export function Header() {
   const chat = useStore(chatStore);
   const theme = useStore(themeStore);
-  console.log("theme", theme);
+  console.log('theme', theme);
+
   return (
     <header
       className={classNames('flex items-center p-5 border-b h-[var(--header-height)]', {
@@ -21,9 +22,9 @@ export function Header() {
         <div className="i-ph:sidebar-simple-duotone text-xl" />
         <a href="/" className="text-2xl font-semibold text-accent flex items-center">
           {theme === 'dark' ? (
-            <img className='w-[136px] object-contain' src="/code-logo-white.svg" />
+            <img className="w-[136px] object-contain" src="/code-logo-white.svg" />
           ) : (
-            <img className='w-[136px] object-contain' src="/code-logo-transparent.svg" />
+            <img className="w-[136px] object-contain" src="/code-logo-transparent.svg" />
           )}
           {/* <span className="i-bolt:logo-text?mask w-[46px] inline-block" /> */}
 
