@@ -1,5 +1,5 @@
 {
-  "name": "bolt",
+  "name": "code",
   "description": "An AI Agent",
   "private": true,
   "license": "MIT",
@@ -7,8 +7,8 @@
   "type": "module",
   "version": "0.0.7",
   "author": {
-    "name": "bolt.diy team",
-    "email": "maintainers@bolt.diy"
+    "name": "code creatstudio team",
+    "email": "teams@createstudio.com"
   },
   "scripts": {
     "deploy": "npm run build && wrangler pages deploy",
