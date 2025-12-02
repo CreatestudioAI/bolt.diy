@@ -22,7 +22,7 @@ export function Header() {
         <div className="i-ph:sidebar-simple-duotone text-xl" />
         <a href="/" className="text-2xl font-semibold text-accent flex items-center">
           {theme === 'dark' ? (
-            <img className="w-[136px] object-contain" src="/code-logo-white.svg" />
+            <img className="w-[136px] object-contain" src="/code-logo-white.png" />
           ) : (
             <img className="w-[136px] object-contain" src="/code-logo-transparent.svg" />
           )}
