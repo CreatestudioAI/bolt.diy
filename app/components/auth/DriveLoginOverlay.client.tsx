@@ -42,7 +42,7 @@ export function DriveLoginOverlay() {
           <>
             <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">Please log in to continue</h2>
             <a
-              href="https://createstudio.app/login?source=pro-studio"
+              href="https://createstudio.app/login?source=cs-code"
               className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition"
             >
               Login with CS
