@@ -16,6 +16,7 @@ import { DEFAULT_MODEL, DEFAULT_PROVIDER, PROMPT_COOKIE_KEY, PROVIDER_LIST } fro
 import { cubicEasingFn } from '~/utils/easings';
 import { createScopedLogger, renderLogger } from '~/utils/logger';
 import { BaseChat } from './BaseChat';
+import { LoadingOverlay } from '~/components/ui/LoadingOverlay';
 import Cookies from 'js-cookie';
 import { debounce } from '~/utils/debounce';
 import { useSettings } from '~/lib/hooks/useSettings';
@@ -48,7 +49,12 @@ export function Chat() {
 
   return (
     <>
-      {ready && (
+      {!ready ? (
+        <>
+          <BaseChat chatStarted={false} isStreaming={false} messages={[]} />
+          <LoadingOverlay message="Loading your conversations..." />
+        </>
+      ) : (
         <ChatImpl
           description={title}
           initialMessages={initialMessages}
@@ -197,21 +203,25 @@ export const ChatImpl = memo(
         setData(undefined);
 
         if (usage) {
-          console.log('Token usage:', usage);
+          const promptTokens = usage.promptTokens ?? (usage as any).inputTokens ?? 0;
+          const completionTokens = usage.completionTokens ?? (usage as any).outputTokens ?? 0;
+          const totalTokens = usage.totalTokens ?? promptTokens + completionTokens;
 
-          const inputData: any = {
-            user_id: user.id,
-            model: 'gpt-4',
-            total_used_tokens: usage.totalTokens,
-          };
-          updateToken(inputData);
-          console.log('Token usage:', usage);
+          if (user?.email) {
+            const inputData: any = {
+              email: user.email,
+              model,
+              total_used_tokens: totalTokens,
+            };
+            updateToken(inputData);
+          }
+
           logStore.logProvider('Chat response completed', {
             component: 'Chat',
             action: 'response',
             model,
             provider: provider.name,
-            usage,
+            usage: { ...usage, promptTokens, completionTokens, totalTokens },
             messageLength: message.content.length,
           });
         }

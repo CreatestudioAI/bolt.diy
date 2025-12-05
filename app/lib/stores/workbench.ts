@@ -532,6 +532,15 @@ export class WorkbenchStore {
   }
 
   async downloadZip() {
+    const { blob, filename } = await this._createZipBlob();
+    saveAs(blob, filename);
+  }
+
+  async createZipBlob() {
+    return this._createZipBlob();
+  }
+
+  private async _createZipBlob(): Promise<{ blob: Blob; filename: string }> {
     const zip = new JSZip();
     const files = this.files.get();
 
@@ -540,7 +549,7 @@ export class WorkbenchStore {
 
     // Generate a simple 6-character hash based on the current timestamp
     const timestampHash = Date.now().toString(36).slice(-6);
-    const uniqueProjectName = `${projectName}_${timestampHash}`;
+    const uniqueProjectName = `bolt_build_${projectName}_${timestampHash}`;
 
     for (const [filePath, dirent] of Object.entries(files)) {
       if (dirent?.type === 'file' && !dirent.isBinary) {
@@ -564,9 +573,9 @@ export class WorkbenchStore {
       }
     }
 
-    // Generate the zip file and save it
-    const content = await zip.generateAsync({ type: 'blob' });
-    saveAs(content, `${uniqueProjectName}.zip`);
+    const blob = await zip.generateAsync({ type: 'blob' });
+
+    return { blob, filename: `${uniqueProjectName}.zip` };
   }
 
   async syncFiles(targetHandle: FileSystemDirectoryHandle) {

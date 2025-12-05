@@ -1,0 +1,21 @@
+import { json, type ActionFunctionArgs } from '@remix-run/cloudflare';
+
+export async function action({ request }: ActionFunctionArgs) {
+  try {
+    const body = await request.json();
+
+    const res = await fetch('https://drive.createstudio.app/api/v1/drive-custom', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    const data = await res.json();
+
+    return json(data, { status: res.status });
+  } catch (error) {
+    console.error('Drive Space API Error:', error);
+
+    return json({ message: 'Internal Server Error' }, { status: 500 });
+  }
+}

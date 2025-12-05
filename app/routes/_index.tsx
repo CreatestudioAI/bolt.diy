@@ -7,9 +7,9 @@ import { BaseChat } from '~/components/chat/BaseChat';
 import { Chat } from '~/components/chat/Chat.client';
 import { Header } from '~/components/header/Header';
 import BackgroundRays from '~/components/ui/BackgroundRays';
-import { UnAuthorize } from '~/components/UnAuthorize';
+import { DriveLoginOverlay } from '~/components/auth/DriveLoginOverlay.client';
 import { authStore } from '~/lib/stores/authStore';
-import { getTokendetails } from '~/utils/auth';
+import { bootstrapDriveAuth } from '~/utils/auth';
 
 export const meta: MetaFunction = () => {
   return [
@@ -27,8 +27,10 @@ export const loader: LoaderFunction = async ({}) => {
   };
   return json(response);
 };
+
 export default function Index() {
-  const { loginUrl, accessUrl } = useLoaderData<any>();
+  useLoaderData<any>();
+
   const { hasAccess } = useStore(authStore);
 
   /*
@@ -36,31 +38,7 @@ export default function Index() {
    * const [loading, setLoading] =  useState(true);
    */
   useEffect(() => {
-    /*
-     * const inputData: any = {
-     *   user_id: '6',
-     *   model: 'gpt-4',
-     *   total_used_tokens: 4111,
-     * };
-     * updateToken(inputData);
-     */
-    getTokendetails();
-
-    /*
-     * let accessTokenCsai:any = Cookies.get("access_token_csai_id");
-     * let refreshToken:any = Cookies.get("refresh_token_csai_id");
-     * accessTokenCsai = accessTokenCsai !== null || accessTokenCsai !== undefined ?  accessTokenCsai : localStorage.getItem('accessTokenCsai');
-     * if(accessTokenCsai && refreshToken !== undefined){
-     *   localStorage.setItem('accessTokenCsai',accessTokenCsai.trim());
-     *   localStorage.setItem('refreshTokenCsai',accessTokenCsai.trim());
-     *   setHasAccess(true);
-     *   setLoading(false);
-     *   fetchUserData(accessTokenCsai)
-     * }else {
-     *     setHasAccess(false);
-     *     setLoading(false);
-     *   }
-     */
+    bootstrapDriveAuth();
   }, []);
 
   if (!hasAccess) {
@@ -68,7 +46,7 @@ export default function Index() {
       <div className="flex flex-col h-full w-full bg-bolt-elements-background-depth-1">
         <BackgroundRays />
         <Header />
-        <ClientOnly>{() => <UnAuthorize loginUrl={loginUrl} accessUrl={accessUrl} />}</ClientOnly>
+        <ClientOnly>{() => <DriveLoginOverlay />}</ClientOnly>
       </div>
     );
   }

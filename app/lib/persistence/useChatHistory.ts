@@ -1,5 +1,6 @@
 import { useLoaderData, useNavigate, useSearchParams } from '@remix-run/react';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useStore } from '@nanostores/react';
 import { atom } from 'nanostores';
 import { generateId, type JSONValue, type Message } from 'ai';
 import { toast } from 'react-toastify';
@@ -14,12 +15,15 @@ import {
   duplicateChat,
   createChatFromMessages,
   type IChatMetadata,
+  getAll,
 } from './db';
 import type { FileMap } from '~/lib/stores/files';
 import type { Snapshot } from './types';
 import { webcontainer } from '~/lib/webcontainer';
 import { createCommandsMessage, detectProjectCommands } from '~/utils/projectCommands';
 import type { ContextAnnotation } from '~/types/context';
+import { fetchDriveChats, persistDriveChats } from '~/lib/services/drive';
+import { authStore } from '~/lib/stores/authStore';
 
 export interface ChatHistoryItem {
   id: string;
@@ -41,11 +45,14 @@ export function useChatHistory() {
   const navigate = useNavigate();
   const { id: mixedId } = useLoaderData<{ id?: string }>();
   const [searchParams] = useSearchParams();
+  const { user } = useStore(authStore);
 
   const [archivedMessages, setArchivedMessages] = useState<Message[]>([]);
   const [initialMessages, setInitialMessages] = useState<Message[]>([]);
   const [ready, setReady] = useState<boolean>(false);
   const [urlId, setUrlId] = useState<string | undefined>();
+  const driveSynced = useRef(false);
+  const driveInitialized = useRef(false);
 
   useEffect(() => {
     if (!db) {
@@ -60,66 +67,98 @@ export function useChatHistory() {
       return;
     }
 
-    if (mixedId) {
-      getMessages(db, mixedId)
-        .then(async (storedMessages) => {
-          if (storedMessages && storedMessages.messages.length > 0) {
-            const snapshotStr = localStorage.getItem(`snapshot:${mixedId}`);
-            const snapshot: Snapshot = snapshotStr ? JSON.parse(snapshotStr) : { chatIndex: 0, files: {} };
-            const summary = snapshot.summary;
+    const syncFromDrive = async () => {
+      if (driveSynced.current || !user?.email) {
+        return;
+      }
 
-            const rewindId = searchParams.get('rewindTo');
-            let startingIdx = -1;
-            const endingIdx = rewindId
-              ? storedMessages.messages.findIndex((m) => m.id === rewindId) + 1
-              : storedMessages.messages.length;
-            const snapshotIndex = storedMessages.messages.findIndex((m) => m.id === snapshot.chatIndex);
+      driveSynced.current = true;
 
-            if (snapshotIndex >= 0 && snapshotIndex < endingIdx) {
-              startingIdx = snapshotIndex;
-            }
+      try {
+        const remoteChats = await fetchDriveChats<ChatHistoryItem>(user.email);
 
-            if (snapshotIndex > 0 && storedMessages.messages[snapshotIndex].id == rewindId) {
-              startingIdx = -1;
-            }
+        for (const chat of remoteChats || []) {
+          if (chat?.id && chat.messages) {
+            await setMessages(db, chat.id, chat.messages, chat.urlId, chat.description, chat.timestamp, chat.metadata);
+          }
+        }
+      } catch (error) {
+        console.warn('Drive chat sync failed', error);
+      }
+    };
 
-            let filteredMessages = storedMessages.messages.slice(startingIdx + 1, endingIdx);
-            let archivedMessages: Message[] = [];
+    const loadChat = async () => {
+      if (!mixedId) {
+        await syncFromDrive();
+        setReady(true);
 
-            if (startingIdx >= 0) {
-              archivedMessages = storedMessages.messages.slice(0, startingIdx + 1);
-            }
+        return;
+      }
 
-            setArchivedMessages(archivedMessages);
+      let storedMessages = await getMessages(db, mixedId);
 
-            if (startingIdx > 0) {
-              const files = Object.entries(snapshot?.files || {})
-                .map(([key, value]) => {
-                  if (value?.type !== 'file') {
-                    return null;
-                  }
+      if ((!storedMessages || storedMessages.messages.length === 0) && user?.email) {
+        await syncFromDrive();
+        storedMessages = await getMessages(db, mixedId);
+      }
 
-                  return {
-                    content: value.content,
-                    path: key,
-                  };
-                })
-                .filter((x) => !!x);
-              const projectCommands = await detectProjectCommands(files);
-              const commands = createCommandsMessage(projectCommands);
+      if (storedMessages && storedMessages.messages.length > 0) {
+        const snapshotStr = localStorage.getItem(`snapshot:${mixedId}`);
+        const snapshot: Snapshot = snapshotStr ? JSON.parse(snapshotStr) : { chatIndex: 0, files: {} };
+        const summary = snapshot.summary;
 
-              filteredMessages = [
-                {
-                  id: generateId(),
-                  role: 'user',
-                  content: `Restore project from snapshot
+        const rewindId = searchParams.get('rewindTo');
+        let startingIdx = -1;
+        const endingIdx = rewindId
+          ? storedMessages.messages.findIndex((m) => m.id === rewindId) + 1
+          : storedMessages.messages.length;
+        const snapshotIndex = storedMessages.messages.findIndex((m) => m.id === snapshot.chatIndex);
+
+        if (snapshotIndex >= 0 && snapshotIndex < endingIdx) {
+          startingIdx = snapshotIndex;
+        }
+
+        if (snapshotIndex > 0 && storedMessages.messages[snapshotIndex].id == rewindId) {
+          startingIdx = -1;
+        }
+
+        let filteredMessages = storedMessages.messages.slice(startingIdx + 1, endingIdx);
+        let archivedMessages: Message[] = [];
+
+        if (startingIdx >= 0) {
+          archivedMessages = storedMessages.messages.slice(0, startingIdx + 1);
+        }
+
+        setArchivedMessages(archivedMessages);
+
+        if (startingIdx > 0) {
+          const files = Object.entries(snapshot?.files || {})
+            .map(([key, value]) => {
+              if (value?.type !== 'file') {
+                return null;
+              }
+
+              return {
+                content: value.content,
+                path: key,
+              };
+            })
+            .filter((x) => !!x);
+          const projectCommands = await detectProjectCommands(files);
+          const commands = createCommandsMessage(projectCommands);
+
+          filteredMessages = [
+            {
+              id: generateId(),
+              role: 'user',
+              content: `Restore project from snapshot
                   `,
-                  annotations: ['no-store', 'hidden'],
-                },
-                {
-                  id: storedMessages.messages[snapshotIndex].id,
-                  role: 'assistant',
-                  content: ` 📦 Chat Restored from snapshot, You can revert this message to load the full chat history
+              annotations: ['no-store', 'hidden'],
+            },
+            {
+              id: storedMessages.messages[snapshotIndex].id,
+              role: 'assistant',
+              content: ` 📦 Chat Restored from snapshot, You can revert this message to load the full chat history
                   <boltArtifact id="imported-files" title="Project Files Snapshot" type="bundled">
                   ${Object.entries(snapshot?.files || {})
                     .filter((x) => !x[0].endsWith('lock.json'))
@@ -137,71 +176,103 @@ ${value.content}
                     .join('\n')}
                   </boltArtifact>
                   `,
-                  annotations: [
-                    'no-store',
-                    ...(summary
-                      ? [
-                          {
-                            chatId: storedMessages.messages[snapshotIndex].id,
-                            type: 'chatSummary',
-                            summary,
-                          } satisfies ContextAnnotation,
-                        ]
-                      : []),
-                  ],
-                },
-                ...(commands !== null
+              annotations: [
+                'no-store',
+                ...(summary
                   ? [
                       {
-                        id: `${storedMessages.messages[snapshotIndex].id}-2`,
-                        role: 'user' as const,
-                        content: `setup project`,
-                        annotations: ['no-store', 'hidden'],
-                      },
-                      {
-                        ...commands,
-                        id: `${storedMessages.messages[snapshotIndex].id}-3`,
-                        annotations: [
-                          'no-store',
-                          ...(commands.annotations || []),
-                          ...(summary
-                            ? [
-                                {
-                                  chatId: `${storedMessages.messages[snapshotIndex].id}-3`,
-                                  type: 'chatSummary',
-                                  summary,
-                                } satisfies ContextAnnotation,
-                              ]
-                            : []),
-                        ],
-                      },
+                        chatId: storedMessages.messages[snapshotIndex].id,
+                        type: 'chatSummary',
+                        summary,
+                      } satisfies ContextAnnotation,
                     ]
                   : []),
-                ...filteredMessages,
-              ];
-              restoreSnapshot(mixedId);
-            }
+              ],
+            },
+            ...(commands !== null
+              ? [
+                  {
+                    id: `${storedMessages.messages[snapshotIndex].id}-2`,
+                    role: 'user' as const,
+                    content: `setup project`,
+                    annotations: ['no-store', 'hidden'],
+                  },
+                  {
+                    ...commands,
+                    id: `${storedMessages.messages[snapshotIndex].id}-3`,
+                    annotations: [
+                      'no-store',
+                      ...(commands.annotations || []),
+                      ...(summary
+                        ? [
+                            {
+                              chatId: `${storedMessages.messages[snapshotIndex].id}-3`,
+                              type: 'chatSummary',
+                              summary,
+                            } satisfies ContextAnnotation,
+                          ]
+                        : []),
+                    ],
+                  },
+                ]
+              : []),
+            ...filteredMessages,
+          ];
+          restoreSnapshot(mixedId);
+        }
 
-            setInitialMessages(filteredMessages);
+        setInitialMessages(filteredMessages);
 
-            setUrlId(storedMessages.urlId);
-            description.set(storedMessages.description);
-            chatId.set(storedMessages.id);
-            chatMetadata.set(storedMessages.metadata);
-          } else {
-            navigate('/', { replace: true });
-          }
+        setUrlId(storedMessages.urlId);
+        description.set(storedMessages.description);
+        chatId.set(storedMessages.id);
+        chatMetadata.set(storedMessages.metadata);
+      } else {
+        navigate('/', { replace: true });
+      }
 
-          setReady(true);
-        })
-        .catch((error) => {
-          console.error(error);
+      setReady(true);
+    };
 
-          logStore.logError('Failed to load chat messages', error);
-          toast.error(error.message);
-        });
+    loadChat().catch((error) => {
+      console.error(error);
+
+      logStore.logError('Failed to load chat messages', error);
+      toast.error(error.message);
+      setReady(true);
+    });
+  }, [db, mixedId, searchParams, user?.email]);
+
+  // Ensure existing local chats are pushed to Drive at least once when a user signs in
+  useEffect(() => {
+    if (!db || !user?.email || driveInitialized.current) {
+      return;
     }
-  }, [mixedId]);
+
+    const initDrive = async () => {
+      driveInitialized.current = true;
+
+      try {
+        const remote = await fetchDriveChats<ChatHistoryItem>(user.email);
+
+        if (remote && remote.length > 0) {
+          return;
+        }
+
+        const localChats = await getAll(db);
+
+        if (localChats.length === 0) {
+          return;
+        }
+
+        await persistDriveChats(user.email, localChats);
+      } catch (error) {
+        console.warn('Initial drive chat push failed', error);
+      }
+    };
+
+    initDrive();
+  }, [db, user?.email]);
 
   const takeSnapshot = useCallback(
     async (chatIdx: string, files: FileMap, _chatId?: string | undefined, chatSummary?: string) => {
@@ -321,15 +392,20 @@ ${value.content}
         }
       }
 
-      await setMessages(
-        db,
-        chatId.get() as string,
-        [...archivedMessages, ...messages],
-        urlId,
-        description.get(),
-        undefined,
-        chatMetadata.get(),
-      );
+      const timestamp = new Date().toISOString();
+      const chatIdentifier = chatId.get() as string;
+      const mergedMessages = [...archivedMessages, ...messages];
+
+      await setMessages(db, chatIdentifier, mergedMessages, urlId, description.get(), timestamp, chatMetadata.get());
+
+      if (user?.email) {
+        try {
+          const allChats = await getAll(db);
+          await persistDriveChats(user.email, allChats);
+        } catch (error) {
+          console.warn('Failed to persist drive chat history', error);
+        }
+      }
     },
     duplicateCurrentChat: async (listItemId: string) => {
       if (!db || (!mixedId && !listItemId)) {

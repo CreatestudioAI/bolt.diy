@@ -7,7 +7,10 @@ import {
   description as descriptionStore,
   getMessages,
   updateChatDescription,
+  getAll,
 } from '~/lib/persistence';
+import { authStore } from '~/lib/stores/authStore';
+import { persistDriveChats } from '~/lib/services/drive';
 
 interface EditChatDescriptionOptions {
   initialDescription?: string;
@@ -45,6 +48,7 @@ export function useEditChatDescription({
   syncWithGlobalStore,
 }: EditChatDescriptionOptions): EditChatDescriptionHook {
   const chatIdFromStore = useStore(chatIdStore);
+  const { user } = useStore(authStore);
   const [editing, setEditing] = useState(false);
   const [currentDescription, setCurrentDescription] = useState(initialDescription);
 
@@ -132,6 +136,16 @@ export function useEditChatDescription({
 
         if (syncWithGlobalStore) {
           descriptionStore.set(currentDescription);
+        }
+
+        // Persist the updated chat list to Drive so other sessions pick up the rename.
+        if (user?.email) {
+          try {
+            const allChats = await getAll(db);
+            await persistDriveChats(user.email, allChats);
+          } catch (error) {
+            console.warn('Failed to persist drive chats after rename', error);
+          }
         }
 
         toast.success('Chat description updated successfully');

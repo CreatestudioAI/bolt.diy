@@ -1,114 +1,96 @@
-import Cookies from 'js-cookie';
 import { authStore } from '~/lib/stores/authStore';
 import { profileStore } from '~/lib/stores/profile';
+import { checkDriveSpace } from '~/lib/services/drive';
 
-const apiUrl: any = import.meta.env.VITE_API_URL + '/api';
+const CS_USER_KEY = 'cs_user';
 
-export async function fetchUserData(token: any) {
-  try {
-    authStore.setKey('isLoading', true);
-
-    const response = await fetch(`${apiUrl}/user`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: 'application/json',
-      },
-    });
-
-    if (response.status === 401) {
-      authStore.setKey('hasAccess', false);
-      authStore.setKey('isLoading', false);
-    }
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch user data');
-    }
-
-    const userData: any = await response.json();
-
-    // Update the store with user data and the token
-    authStore.setKey('user', userData);
-    profileStore.set({
-      username: userData.name,
-      bio: '',
-      avatar: '',
-    });
-    Cookies.set('userCsai', JSON.stringify(userData), { path: '/', secure: false });
-    authStore.setKey('isLoading', false);
-    authStore.setKey('hasAccess', true);
-    authStore.setKey('accessToken', token);
-  } catch (err: any) {
-    authStore.setKey('error', err.message);
-    authStore.setKey('isLoading', false);
-  }
+export interface DriveUser {
+  email: string;
+  name?: string;
 }
 
-export const getTokendetails = async () => {
+const saveUser = (user: DriveUser) => {
+  localStorage.setItem(CS_USER_KEY, JSON.stringify(user));
+  authStore.setKey('user', user);
+  profileStore.set({
+    username: user.name || '',
+    bio: '',
+    avatar: '',
+  });
+};
+
+export const loadUserFromStorage = (): DriveUser | null => {
+  if (typeof localStorage === 'undefined') {
+    return null;
+  }
+
+  const raw = localStorage.getItem(CS_USER_KEY);
+
+  if (!raw) {
+    return null;
+  }
+
   try {
-    const response = await fetch(`${apiUrl}/token`, {
-      method: 'GET',
-      credentials: 'include', // Ensures cookies are sent with the request
-      headers: {
-        Accept: 'application/json',
-      },
-    });
+    return JSON.parse(raw) as DriveUser;
+  } catch {
+    return null;
+  }
+};
 
-    const output: any = await response.json();
+export const bootstrapDriveAuth = async () => {
+  authStore.setKey('isLoading', true);
 
-    if (output.status) {
-      authStore.setKey('hasAccess', true);
-      authStore.setKey('accessToken', output.accessToken);
-      Cookies.set('csai_access_token', output.data.accessToken, { path: '/', secure: false });
-      Cookies.set('csai_refresh_token', output.data.refreshToken, { path: '/', secure: false });
-      await fetchUserData(output.data.accessToken);
-    } else {
-      authStore.setKey('hasAccess', false);
-      authStore.setKey('isLoading', false);
+  // 1. Capture email/name from query params if present
+  if (typeof window !== 'undefined') {
+    const params = new URLSearchParams(window.location.search);
+    const email = params.get('email');
+    const name = params.get('name');
+
+    if (email) {
+      saveUser({ email, name: name || undefined });
+
+      // Clean URL
+      window.history.replaceState({}, '', window.location.pathname);
     }
-  } catch (error) {
-    console.log('error', error);
   }
-};
 
-export const isUserLoggedIn = async () => {
-  try {
-    const response = await fetch(`${apiUrl}/fetchuser`, {
-      method: 'GET',
-      credentials: 'include', // Ensures cookies are sent with the request
-      headers: {
-        Accept: 'application/json',
-      },
-    });
-    const userData: any = await response.json();
-    Cookies.set('userCsai', JSON.stringify(userData.data), { path: '/', secure: false });
-    authStore.setKey('user', userData);
+  const user = loadUserFromStorage();
+
+  if (!user) {
+    authStore.setKey('user', null);
+    authStore.setKey('hasAccess', false);
     authStore.setKey('isLoading', false);
-    authStore.setKey('hasAccess', true);
-  } catch (error) {
-    console.log('error', error);
+
+    return;
+  }
+
+  authStore.setKey('user', user);
+
+  try {
+    const hasSpace = await checkDriveSpace(user.email);
+    authStore.setKey('hasAccess', hasSpace);
+  } catch (err: any) {
+    authStore.setKey('error', err.message || 'Failed to verify storage');
+    authStore.setKey('hasAccess', false);
+  } finally {
+    authStore.setKey('isLoading', false);
   }
 };
 
-export const updateToken = async (inputData: any) => {
+export const updateToken = async (inputData: { email: string; model: string; total_used_tokens: number }) => {
   try {
-    const response = await fetch(`${apiUrl}/updatetokens`, {
-      method: 'post',
+    const response = await fetch('/api/billing', {
+      method: 'POST',
       headers: {
         Accept: 'application/json',
-        Authorization: 'Bearer ' + Cookies.get('csai_access_token'),
-        'Content-Type': 'application/json', // Add this header
+        'Content-Type': 'application/json',
       },
       body: JSON.stringify(inputData),
     });
 
-    if (response.status === 401) {
-      authStore.setKey('hasAccess', false);
-      authStore.setKey('isLoading', false);
+    if (!response.ok) {
+      throw new Error('Billing request failed');
     }
-
-    const output: any = await response.json();
-    Cookies.set('userCsai', JSON.stringify(output.userDetails), { path: '/', secure: false });
-    authStore.setKey('user', output.userDetails);
   } catch (error) {
     console.log('error', error);
   }

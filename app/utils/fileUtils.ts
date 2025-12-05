@@ -18,7 +18,11 @@ export const IGNORE_PATTERNS = [
   '**/yarn-error.log*',
 ];
 
-export const MAX_FILES = 1000;
+// Default max files for folder import; can be overridden via VITE_MAX_PROJECT_FILES while we trial higher limits.
+const DEFAULT_MAX_FILES = 20000;
+const envConfiguredLimit = Number.parseInt(import.meta.env.VITE_MAX_PROJECT_FILES || '', 10);
+export const MAX_FILES =
+  Number.isFinite(envConfiguredLimit) && envConfiguredLimit > 0 ? envConfiguredLimit : DEFAULT_MAX_FILES;
 export const ig = ignore().add(IGNORE_PATTERNS);
 
 export const generateId = () => Math.random().toString(36).substring(2, 15);

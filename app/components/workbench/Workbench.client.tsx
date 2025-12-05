@@ -25,6 +25,9 @@ import { Preview } from './Preview';
 import useViewport from '~/lib/hooks';
 import { PushToGitHubDialog } from '~/components/@settings/tabs/connections/components/PushToGitHubDialog';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import { authStore } from '~/lib/stores/authStore';
+import { description } from '~/lib/persistence';
+import { ensureDriveSpaceOrToast, fetchDriveManifest, persistManifest, uploadToDrive } from '~/lib/services/drive';
 
 interface WorkspaceProps {
   chatStarted?: boolean;
@@ -281,8 +284,10 @@ export const Workbench = memo(
     renderLogger.trace('Workbench');
 
     const [isSyncing, setIsSyncing] = useState(false);
+    const [isSavingToDrive, setIsSavingToDrive] = useState(false);
     const [isPushDialogOpen, setIsPushDialogOpen] = useState(false);
     const [fileHistory, setFileHistory] = useState<Record<string, FileHistory>>({});
+    const { user } = useStore(authStore);
 
     // const modifiedFiles = Array.from(useStore(workbenchStore.unsavedFiles).keys());
 
@@ -346,6 +351,52 @@ export const Workbench = memo(
         setIsSyncing(false);
       }
     }, []);
+
+    const handleSaveToDrive = useCallback(async () => {
+      if (!user?.email) {
+        toast.info('Please log in via CreateStudio to save to Drive.');
+        return;
+      }
+
+      const hasSpace = await ensureDriveSpaceOrToast(user.email);
+
+      if (!hasSpace) {
+        return;
+      }
+
+      setIsSavingToDrive(true);
+
+      try {
+        const { blob, filename } = await workbenchStore.createZipBlob();
+        const uploadResult = await uploadToDrive({
+          email: user.email,
+          file: blob,
+          filename,
+          fileNameOverride: filename,
+        });
+
+        const manifest = await fetchDriveManifest(user.email);
+        const entry = {
+          id: uploadResult.id || filename,
+          description: description.get() || '',
+          timestamp: new Date().toISOString(),
+          model: undefined,
+          provider: undefined,
+          tokenUsage: undefined,
+          zipId: uploadResult.id || '',
+          zipName: filename,
+          fileCount: Object.values(files || {}).filter((f) => f?.type === 'file').length,
+        };
+
+        await persistManifest(user.email, [...manifest, entry]);
+        toast.success('Build saved to Drive');
+      } catch (error) {
+        console.error('Failed to save to Drive', error);
+        toast.error('Failed to save to Drive');
+      } finally {
+        setIsSavingToDrive(false);
+      }
+    }, [files, user]);
 
     const handleSelectFile = useCallback((filePath: string) => {
       workbenchStore.setSelectedFile(filePath);
@@ -415,6 +466,22 @@ export const Workbench = memo(
                             <div className="flex items-center gap-2">
                               <div className="i-ph:download-simple"></div>
                               <span>Download Code</span>
+                            </div>
+                          </DropdownMenu.Item>
+                          <DropdownMenu.Item
+                            className={classNames(
+                              'cursor-pointer flex items-center w-full px-4 py-2 text-sm text-bolt-elements-textPrimary hover:bg-bolt-elements-item-backgroundActive gap-2 rounded-md group relative',
+                            )}
+                            onClick={handleSaveToDrive}
+                            disabled={isSavingToDrive}
+                          >
+                            <div className="flex items-center gap-2">
+                              {isSavingToDrive ? (
+                                <div className="i-ph:spinner" />
+                              ) : (
+                                <div className="i-ph:cloud-arrow-up" />
+                              )}
+                              <span>{isSavingToDrive ? 'Saving...' : 'Save to Drive'}</span>
                             </div>
                           </DropdownMenu.Item>
                           <DropdownMenu.Item
