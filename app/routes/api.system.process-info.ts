@@ -340,10 +340,10 @@ const getMockProcessInfo = (): ProcessInfo[] => {
     },
     {
       pid: 3,
-      name: 'bolt',
+      name: 'code',
       cpu: randomHighCPU(),
       memory: 15 + randomMem(),
-      command: 'Bolt AI Process',
+      command: 'Code AI Process',
       timestamp,
     },
     {

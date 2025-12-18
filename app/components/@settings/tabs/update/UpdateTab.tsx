@@ -455,8 +455,7 @@ const UpdateTab = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p>
-                  Updates are fetched from: <span className="font-mono">stackblitz-labs/bolt.diy</span> (
-                  {isLatestBranch ? 'main' : 'stable'} branch)
+                  Updates are fetched from your configured update source ({isLatestBranch ? 'main' : 'stable'} branch)
                 </p>
                 <p className="mt-1">
                   Current version: <span className="font-mono">{updateProgress.details.currentCommit}</span>
@@ -553,8 +552,8 @@ const UpdateTab = () => {
           <DialogDescription>
             <div className="mt-4">
               <p className="text-sm text-bolt-elements-textSecondary mb-4">
-                A new version is available from <span className="font-mono">stackblitz-labs/bolt.diy</span> (
-                {isLatestBranch ? 'main' : 'stable'} branch)
+                A new version is available from your configured update source ({isLatestBranch ? 'main' : 'stable'}{' '}
+                branch)
               </p>
 
               {updateProgress?.details?.compareUrl && (

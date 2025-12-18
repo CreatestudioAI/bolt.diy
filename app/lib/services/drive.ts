@@ -17,9 +17,12 @@ export interface DriveManifestEntry {
   fileCount: number;
 }
 
-const FILE_PREFIX = 'bolt_';
-const manifestFileName = (email: string) => `${FILE_PREFIX}code_${email}.json`;
-const chatFileName = (email: string) => `${FILE_PREFIX}chat_${email}.json`;
+const DEFAULT_FILE_PREFIX = '';
+const DUPLICATE_FILE_PREFIX = 'code_'; // backward compatibility for previously double-prefixed files
+const LEGACY_FILE_PREFIX = 'bolt_';
+const FILE_PREFIX_FALLBACKS = [DEFAULT_FILE_PREFIX, DUPLICATE_FILE_PREFIX, LEGACY_FILE_PREFIX];
+const manifestFileName = (email: string, prefix = DEFAULT_FILE_PREFIX) => `${prefix}code_${email}.json`;
+const chatFileName = (email: string, prefix = DEFAULT_FILE_PREFIX) => `${prefix}chat_${email}.json`;
 
 export async function checkDriveSpace(email: string): Promise<boolean> {
   const res = await fetch(DRIVE_SPACE_ENDPOINT, {
@@ -91,19 +94,25 @@ async function readDriveFileResponse(res: Response) {
 }
 
 export async function fetchDriveManifest(email: string): Promise<DriveManifestEntry[]> {
-  const res = await fetch(DRIVE_FILE_ENDPOINT, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      email,
-      request_type: 'get_file',
-      file_name: manifestFileName(email),
-    }),
-  });
+  for (const prefix of FILE_PREFIX_FALLBACKS) {
+    const res = await fetch(DRIVE_FILE_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email,
+        request_type: 'get_file',
+        file_name: manifestFileName(email, prefix),
+      }),
+    });
 
-  const data = await readDriveFileResponse(res);
+    const data = await readDriveFileResponse(res);
 
-  return Array.isArray(data) ? data : [];
+    if (Array.isArray(data)) {
+      return data;
+    }
+  }
+
+  return [];
 }
 
 export async function uploadToDrive(options: {
@@ -144,19 +153,25 @@ export async function persistManifest(email: string, entries: DriveManifestEntry
 }
 
 export async function fetchDriveChats<T = any>(email: string): Promise<T[]> {
-  const res = await fetch(DRIVE_FILE_ENDPOINT, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      email,
-      request_type: 'get_file',
-      file_name: chatFileName(email),
-    }),
-  });
+  for (const prefix of FILE_PREFIX_FALLBACKS) {
+    const res = await fetch(DRIVE_FILE_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email,
+        request_type: 'get_file',
+        file_name: chatFileName(email, prefix),
+      }),
+    });
 
-  const data = await readDriveFileResponse(res);
+    const data = await readDriveFileResponse(res);
 
-  return Array.isArray(data) ? data : [];
+    if (Array.isArray(data)) {
+      return data;
+    }
+  }
+
+  return [];
 }
 
 export async function persistDriveChats(email: string, chats: any[]) {

@@ -14,7 +14,7 @@ import { bootstrapDriveAuth } from '~/utils/auth';
 export const meta: MetaFunction = () => {
   return [
     { title: 'Create Studio' },
-    { name: 'description', content: 'Talk with Bolt, an AI assistant from StackBlitz' },
+    { name: 'description', content: 'Talk with Code, an AI assistant from StackBlitz' },
   ];
 };
 
