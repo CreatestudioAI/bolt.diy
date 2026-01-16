@@ -1,5 +1,5 @@
 import { authStore } from '~/lib/stores/authStore';
-import { profileStore } from '~/lib/stores/profile';
+import { profileStore, updateProfile } from '~/lib/stores/profile';
 import { checkDriveSpace } from '~/lib/services/drive';
 
 const CS_USER_KEY = 'cs_user';
@@ -11,12 +11,12 @@ export interface DriveUser {
 
 const saveUser = (user: DriveUser) => {
   localStorage.setItem(CS_USER_KEY, JSON.stringify(user));
+
   authStore.setKey('user', user);
-  profileStore.set({
-    username: user.name || '',
-    bio: '',
-    avatar: '',
-  });
+
+  if (user.name) {
+    updateProfile({ username: user.name });
+  }
 };
 
 export const loadUserFromStorage = (): DriveUser | null => {
@@ -65,6 +65,10 @@ export const bootstrapDriveAuth = async () => {
   }
 
   authStore.setKey('user', user);
+
+  if (!profileStore.get().username && user.name) {
+    updateProfile({ username: user.name });
+  }
 
   try {
     const hasSpace = await checkDriveSpace(user.email);
